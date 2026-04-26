@@ -10,6 +10,25 @@ Architecture
 - The package uses the `src/` layout; application code lives in `src/litellm_management/`.
 - The primary CLI entrypoint is `poetry run litellm_management`.
 - The repository currently does not include a test suite.
+- Use object-oriented design when it provides clearer boundaries.
+- All Python code must use type annotations.
+- Use Pydantic for runtime validation of CLI metadata, configuration, and structured data.
+
+Feature implementation rules
+----------------------------
+- CLI functionality is implemented as `Feature` classes in `src/litellm_management/features/`.
+- Each user-facing functionality must be represented by exactly one `Feature` class.
+- Each `Feature` class must live in its own file in `src/litellm_management/features/`.
+- Each `Feature` must expose one dedicated CLI flag through `FeatureDefinition`.
+- Define the flag and help text with `FeatureDefinition(flag=..., description=...)`.
+- Implement the feature behavior in `run() -> int`.
+- Return process-style exit codes from `run()`; use `0` for success.
+- Register every feature in `create_feature_registry()` in `src/litellm_management/features/registry.py`.
+- Keep `src/litellm_management/cli.py` thin; it should only parse arguments and delegate to registered features.
+- Do not add feature-specific business logic or feature-specific branching to `cli.py`.
+- If a feature needs structured input, output, configuration, or metadata, model it with Pydantic.
+- Prefer Open-Closed Principle friendly changes: add new feature classes and supporting objects instead of modifying CLI orchestration.
+- Use object-oriented strategies for behavior that may vary between features or providers.
 
 Repository updates rules
 ------------------------
