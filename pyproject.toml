@@ -1,0 +1,18 @@
+[project]
+name = "litellm-management"
+version = "0.1.0"
+description = "Tools and scripts for managing LiteLLM."
+readme = "README.md"
+requires-python = ">=3.12,<4.0"
+authors = [{ name = "pavlix" }]
+dependencies = []
+
+[project.scripts]
+litellm_management = "litellm_management.cli:main"
+
+[tool.poetry]
+packages = [{ include = "litellm_management", from = "src" }]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
