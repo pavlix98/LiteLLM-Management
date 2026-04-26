@@ -22,3 +22,21 @@ class LiteLlmClient:
         """List available models."""
         response = self._client.models.list()
         return [AvailableModel(id=model.id) for model in response.data]
+
+    def ask_model(self, model_id: str, prompt: str) -> str:
+        """Send a prompt to a model and return its text response."""
+        response = self._client.chat.completions.create(
+            model=model_id,
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt,
+                }
+            ],
+        )
+        content = response.choices[0].message.content
+
+        if content is None:
+            return ""
+
+        return content

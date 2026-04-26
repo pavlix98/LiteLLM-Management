@@ -12,6 +12,10 @@ from litellm_management.litellm_client import AvailableModel
 from litellm_management.litellm_client import LiteLlmClient
 
 
+TEST_PROMPT = "Co víš o vesnici Kuničky? maximálně 2 věty"
+MAX_RESPONSE_LENGTH = 500
+
+
 class TestAvailableModelsFeature(Feature):
     """Check which models are available through LiteLLM."""
 
@@ -36,7 +40,8 @@ class TestAvailableModelsFeature(Feature):
             )
 
             with self._console.status("Getting available models"):
-                models = LiteLlmClient(config).list_models()
+                client = LiteLlmClient(config)
+                models = client.list_models()
         except MissingLiteLlmApiTokenError as error:
             self._console.show_error(str(error))
             return 1
@@ -49,12 +54,14 @@ class TestAvailableModelsFeature(Feature):
             return 0
 
         self._console.show_success(f"Found {len(models)} models")
-        result_rows = self._test_models(models)
+        result_rows = self._test_models(client, models)
+        failed_count = sum(1 for row in result_rows if row.status == "failed")
+        available_count = len(result_rows) - failed_count
         duration_seconds = monotonic() - start_time
         self._console.show_results(
             FeatureResultSummary(
-                available_count=len(models),
-                failed_count=0,
+                available_count=available_count,
+                failed_count=failed_count,
                 duration_seconds=duration_seconds,
             )
         )
@@ -62,13 +69,43 @@ class TestAvailableModelsFeature(Feature):
 
         return 0
 
-    def _test_models(self, models: Sequence[AvailableModel]) -> list[ModelTestResultRow]:
-        self._console.test_models_progress([model.id for model in models])
-        return [
-            ModelTestResultRow(
-                model_name=model.id,
-                status="skipped",
-                response="Not tested yet",
-            )
-            for model in models
-        ]
+    def _test_models(
+        self,
+        client: LiteLlmClient,
+        models: Sequence[AvailableModel],
+    ) -> list[ModelTestResultRow]:
+        result_rows: list[ModelTestResultRow] = []
+
+        with self._console.test_models_progress(len(models)) as progress:
+            for model in models:
+                progress.update_current_model(model.id)
+
+                try:
+                    response = client.ask_model(model_id=model.id, prompt=TEST_PROMPT)
+                    result_rows.append(
+                        ModelTestResultRow(
+                            model_name=model.id,
+                            status="ok",
+                            response=self._format_response(response),
+                        )
+                    )
+                except OpenAIError as error:
+                    result_rows.append(
+                        ModelTestResultRow(
+                            model_name=model.id,
+                            status="failed",
+                            response=self._format_response(str(error)),
+                        )
+                    )
+                finally:
+                    progress.advance()
+
+        return result_rows
+
+    def _format_response(self, response: str) -> str:
+        normalized_response = " ".join(response.split())
+
+        if len(normalized_response) <= MAX_RESPONSE_LENGTH:
+            return normalized_response
+
+        return f"{normalized_response[:MAX_RESPONSE_LENGTH]}..."

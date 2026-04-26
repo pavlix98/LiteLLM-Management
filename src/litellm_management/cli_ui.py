@@ -2,11 +2,9 @@
 
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
-from time import monotonic, sleep
 
 from pydantic import BaseModel, Field
 from rich.console import Console
-from rich.live import Live
 from rich.panel import Panel
 from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
@@ -27,6 +25,22 @@ class ModelTestResultRow(BaseModel):
     model_name: str = Field(min_length=1)
     status: str = Field(min_length=1)
     response: str
+
+
+class ModelTestingProgress:
+    """Live progress controller for per-model testing."""
+
+    def __init__(self, progress: Progress, task_id: int) -> None:
+        self._progress = progress
+        self._task_id = task_id
+
+    def update_current_model(self, model_id: str) -> None:
+        """Set the model currently being tested."""
+        self._progress.update(self._task_id, model_id=model_id)
+
+    def advance(self) -> None:
+        """Mark one model test as completed."""
+        self._progress.advance(self._task_id)
 
 
 class CliConsole:
@@ -68,8 +82,9 @@ class CliConsole:
         """Show a neutral empty-state line."""
         self._console.print(f"[yellow]{message}[/yellow]")
 
-    def test_models_progress(self, model_ids: list[str]) -> None:
-        """Render simulated per-model testing progress."""
+    @contextmanager
+    def test_models_progress(self, model_count: int) -> Iterator[ModelTestingProgress]:
+        """Render live per-model testing progress."""
         progress = Progress(
             SpinnerColumn(spinner_name="dots"),
             TextColumn("[cyan]Testing models[/cyan]"),
@@ -82,20 +97,12 @@ class CliConsole:
         )
         task_id = progress.add_task(
             "Testing models",
-            total=len(model_ids),
+            total=model_count,
             model_id="",
         )
 
-        with Live(progress, console=self._console, refresh_per_second=12):
-            for model_id in model_ids:
-                start_time = monotonic()
-                progress.update(task_id, model_id=model_id)
-
-                while monotonic() - start_time < 1:
-                    progress.refresh()
-                    sleep(0.05)
-
-                progress.advance(task_id)
+        with progress:
+            yield ModelTestingProgress(progress=progress, task_id=task_id)
 
     def show_results(self, summary: FeatureResultSummary) -> None:
         """Show final result summary."""
