@@ -1,12 +1,11 @@
 """Feature for checking available LiteLLM models."""
 
-import time
-
 from collections.abc import Sequence
+from time import monotonic
 
 from openai import OpenAIError
 
-from litellm_management.cli_progress import SpinnerProgress
+from litellm_management.cli_ui import CliConsole, FeatureResultSummary
 from litellm_management.config import LiteLlmConfigLoader, MissingLiteLlmApiTokenError
 from litellm_management.features.base import Feature, FeatureDefinition
 from litellm_management.litellm_client import AvailableModel
@@ -16,46 +15,51 @@ from litellm_management.litellm_client import LiteLlmClient
 class TestAvailableModelsFeature(Feature):
     """Check which models are available through LiteLLM."""
 
-    def __init__(self) -> None:
+    def __init__(self, console: CliConsole | None = None) -> None:
         super().__init__(
             FeatureDefinition(
                 flag="--test-available-models",
                 description="Test which LiteLLM models are available.",
             )
         )
+        self._console = console or CliConsole()
 
     def run(self) -> int:
         """Run the available-models check."""
-        print("Getting available models...")
+        start_time = monotonic()
 
         try:
             config = LiteLlmConfigLoader().load()
-            print(f"Using LiteLLM URL: {config.base_url}")
-            models = LiteLlmClient(config).list_models()
+            self._console.show_feature_header(
+                feature_name="Test available models",
+                endpoint_url=config.base_url,
+            )
+
+            with self._console.status("Getting available models"):
+                models = LiteLlmClient(config).list_models()
         except MissingLiteLlmApiTokenError as error:
-            print(f"Configuration error: {error}")
+            self._console.show_error(str(error))
             return 1
         except OpenAIError as error:
-            print(f"LiteLLM API error: {error}")
+            self._console.show_error(f"LiteLLM API error: {error}")
             return 1
 
         if not models:
-            print("No models are available.")
+            self._console.show_empty("No models are available.")
             return 0
 
+        self._console.show_success(f"Found {len(models)} models")
         self._test_models(models)
+        duration_seconds = monotonic() - start_time
+        self._console.show_results(
+            FeatureResultSummary(
+                available_count=len(models),
+                failed_count=0,
+                duration_seconds=duration_seconds,
+            )
+        )
 
         return 0
 
     def _test_models(self, models: Sequence[AvailableModel]) -> None:
-        progress = SpinnerProgress()
-        model_count = len(models)
-
-        for index, model in enumerate(models, start=1):
-            message = f"Testing models {index}/{model_count}: {model.id}"
-
-            for _ in range(10):
-                progress.render(message)
-                time.sleep(0.1)
-
-        progress.finish(f"Finished testing {model_count} models.")
+        self._console.test_models_progress([model.id for model in models])

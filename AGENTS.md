@@ -30,6 +30,7 @@ Feature implementation rules
 - Do not add feature-specific business logic or feature-specific branching to `cli.py`.
 - If a feature needs structured input, output, configuration, or metadata, model it with Pydantic.
 - Keep OpenAI-compatible API calls outside feature classes in dedicated client/service objects.
+- Route rich CLI presentation through dedicated UI objects; avoid direct `print()` calls in feature classes.
 - Prefer Open-Closed Principle friendly changes: add new feature classes and supporting objects instead of modifying CLI orchestration.
 - Use object-oriented strategies for behavior that may vary between features or providers.
 
