@@ -5,7 +5,7 @@ description = "Tools and scripts for managing LiteLLM."
 readme = "README.md"
 requires-python = ">=3.12,<4.0"
 authors = [{ name = "pavlix" }]
-dependencies = ["pydantic (>=2.13.3,<3.0.0)"]
+dependencies = ["pydantic (>=2.13.3,<3.0.0)", "openai (>=2.32.0,<3.0.0)", "python-dotenv (>=1.2.2,<2.0.0)"]
 
 [project.scripts]
 litellm_management = "litellm_management.cli:main"

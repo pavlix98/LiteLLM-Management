@@ -6,10 +6,13 @@ Tools and scripts for managing LiteLLM.
 
 ```bash
 poetry install
+cp .env.example .env
 poetry run litellm_management
 poetry run litellm_management --help
 poetry run litellm_management --test-available-models
 ```
+
+Set `LITELLM_API_TOKEN` in the local `.env` file before running features that call LiteLLM. The `.env` file is local-only and must not be committed.
 
 ## Feature Architecture
 
