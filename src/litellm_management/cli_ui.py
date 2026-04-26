@@ -1,6 +1,6 @@
 """Rich-based CLI UI helpers."""
 
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from time import monotonic, sleep
 
@@ -19,6 +19,14 @@ class FeatureResultSummary(BaseModel):
     available_count: int = Field(ge=0)
     failed_count: int = Field(ge=0)
     duration_seconds: float = Field(ge=0)
+
+
+class ModelTestResultRow(BaseModel):
+    """One row in the per-model test result table."""
+
+    model_name: str = Field(min_length=1)
+    status: str = Field(min_length=1)
+    response: str
 
 
 class CliConsole:
@@ -105,3 +113,19 @@ class CliConsole:
                 border_style="cyan",
             )
         )
+
+    def show_model_results_table(self, rows: Sequence[ModelTestResultRow]) -> None:
+        """Show per-model test results."""
+        table = Table(
+            title="Model results",
+            header_style="bold cyan",
+            border_style="cyan",
+        )
+        table.add_column("Model", style="white", no_wrap=True)
+        table.add_column("Status", style="yellow")
+        table.add_column("Response", style="white")
+
+        for row in rows:
+            table.add_row(row.model_name, row.status, row.response)
+
+        self._console.print(table)

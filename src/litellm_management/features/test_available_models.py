@@ -5,7 +5,7 @@ from time import monotonic
 
 from openai import OpenAIError
 
-from litellm_management.cli_ui import CliConsole, FeatureResultSummary
+from litellm_management.cli_ui import CliConsole, FeatureResultSummary, ModelTestResultRow
 from litellm_management.config import LiteLlmConfigLoader, MissingLiteLlmApiTokenError
 from litellm_management.features.base import Feature, FeatureDefinition
 from litellm_management.litellm_client import AvailableModel
@@ -49,7 +49,7 @@ class TestAvailableModelsFeature(Feature):
             return 0
 
         self._console.show_success(f"Found {len(models)} models")
-        self._test_models(models)
+        result_rows = self._test_models(models)
         duration_seconds = monotonic() - start_time
         self._console.show_results(
             FeatureResultSummary(
@@ -58,8 +58,17 @@ class TestAvailableModelsFeature(Feature):
                 duration_seconds=duration_seconds,
             )
         )
+        self._console.show_model_results_table(result_rows)
 
         return 0
 
-    def _test_models(self, models: Sequence[AvailableModel]) -> None:
+    def _test_models(self, models: Sequence[AvailableModel]) -> list[ModelTestResultRow]:
         self._console.test_models_progress([model.id for model in models])
+        return [
+            ModelTestResultRow(
+                model_name=model.id,
+                status="skipped",
+                response="Not tested yet",
+            )
+            for model in models
+        ]
