@@ -24,6 +24,7 @@ class ModelTestResultRow(BaseModel):
 
     model_name: str = Field(min_length=1)
     status: str = Field(min_length=1)
+    duration_seconds: float = Field(ge=0)
     response: str
 
 
@@ -49,12 +50,21 @@ class CliConsole:
     def __init__(self, console: Console | None = None) -> None:
         self._console = console or Console()
 
-    def show_feature_header(self, feature_name: str, endpoint_url: str) -> None:
+    def show_feature_header(
+        self,
+        feature_name: str,
+        description: str,
+        endpoint_url: str,
+        test_prompt: str,
+    ) -> None:
         """Show feature title and endpoint context."""
-        body = Text()
-        body.append(feature_name, style="bold white")
-        body.append("\n")
-        body.append(endpoint_url, style="cyan")
+        body = Table.grid(padding=(0, 1))
+        body.add_column(style="bold cyan", no_wrap=True)
+        body.add_column(style="white")
+        body.add_row("Name", feature_name)
+        body.add_row("Description", description)
+        body.add_row("Endpoint", f"[cyan]{endpoint_url}[/cyan]")
+        body.add_row("Test prompt", f"[italic]\"{test_prompt}\"[/italic]")
 
         self._console.print(
             Panel(
@@ -127,12 +137,30 @@ class CliConsole:
             title="Model results",
             header_style="bold cyan",
             border_style="cyan",
+            padding=(1, 1),
         )
         table.add_column("Model", style="white", no_wrap=True)
-        table.add_column("Status", style="yellow")
+        table.add_column("Status")
+        table.add_column("Duration", style="cyan", justify="right")
         table.add_column("Response", style="white")
 
         for row in rows:
-            table.add_row(row.model_name, row.status, row.response)
+            status_style = self._get_status_style(row.status)
+            response_style = "red" if row.status == "failed" else "white"
+            table.add_row(
+                row.model_name,
+                Text(row.status, style=status_style),
+                f"{row.duration_seconds:.2f}s",
+                Text(row.response, style=response_style),
+            )
 
         self._console.print(table)
+
+    def _get_status_style(self, status: str) -> str:
+        if status == "ok":
+            return "green"
+
+        if status == "failed":
+            return "red"
+
+        return "yellow"

@@ -1,7 +1,10 @@
 """Feature for checking available LiteLLM models."""
 
+import ast
+
 from collections.abc import Sequence
 from time import monotonic
+from typing import Any
 
 from openai import OpenAIError
 
@@ -36,7 +39,9 @@ class TestAvailableModelsFeature(Feature):
             config = LiteLlmConfigLoader().load()
             self._console.show_feature_header(
                 feature_name="Test available models",
+                description="Lists LiteLLM models and sends a small chat prompt to each one.",
                 endpoint_url=config.base_url,
+                test_prompt=TEST_PROMPT,
             )
 
             with self._console.status("Getting available models"):
@@ -79,22 +84,27 @@ class TestAvailableModelsFeature(Feature):
         with self._console.test_models_progress(len(models)) as progress:
             for model in models:
                 progress.update_current_model(model.id)
+                model_start_time = monotonic()
 
                 try:
                     response = client.ask_model(model_id=model.id, prompt=TEST_PROMPT)
+                    duration_seconds = monotonic() - model_start_time
                     result_rows.append(
                         ModelTestResultRow(
                             model_name=model.id,
                             status="ok",
+                            duration_seconds=duration_seconds,
                             response=self._format_response(response),
                         )
                     )
                 except OpenAIError as error:
+                    duration_seconds = monotonic() - model_start_time
                     result_rows.append(
                         ModelTestResultRow(
                             model_name=model.id,
                             status="failed",
-                            response=self._format_response(str(error)),
+                            duration_seconds=duration_seconds,
+                            response=self._format_response(self._extract_error_message(error)),
                         )
                     )
                 finally:
@@ -109,3 +119,43 @@ class TestAvailableModelsFeature(Feature):
             return normalized_response
 
         return f"{normalized_response[:MAX_RESPONSE_LENGTH]}..."
+
+    def _extract_error_message(self, error: OpenAIError) -> str:
+        error_message = getattr(error, "message", None)
+
+        if isinstance(error_message, str) and error_message.strip() != "":
+            return error_message
+
+        error_text = str(error)
+        _, separator, payload_text = error_text.partition(" - ")
+
+        if separator == "":
+            return error_text
+
+        try:
+            payload = ast.literal_eval(payload_text)
+        except (SyntaxError, ValueError):
+            return error_text
+
+        message = self._read_nested_error_message(payload)
+
+        if message is None:
+            return error_text
+
+        return message
+
+    def _read_nested_error_message(self, payload: Any) -> str | None:
+        if not isinstance(payload, dict):
+            return None
+
+        error_payload = payload.get("error")
+
+        if not isinstance(error_payload, dict):
+            return None
+
+        message = error_payload.get("message")
+
+        if not isinstance(message, str):
+            return None
+
+        return message
