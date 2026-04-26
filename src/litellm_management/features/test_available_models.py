@@ -1,9 +1,15 @@
 """Feature for checking available LiteLLM models."""
 
+import time
+
+from collections.abc import Sequence
+
 from openai import OpenAIError
 
+from litellm_management.cli_progress import SpinnerProgress
 from litellm_management.config import LiteLlmConfigLoader, MissingLiteLlmApiTokenError
 from litellm_management.features.base import Feature, FeatureDefinition
+from litellm_management.litellm_client import AvailableModel
 from litellm_management.litellm_client import LiteLlmClient
 
 
@@ -37,8 +43,19 @@ class TestAvailableModelsFeature(Feature):
             print("No models are available.")
             return 0
 
-        print("Available models:")
-        for model in models:
-            print(f"- {model.id}")
+        self._test_models(models)
 
         return 0
+
+    def _test_models(self, models: Sequence[AvailableModel]) -> None:
+        progress = SpinnerProgress()
+        model_count = len(models)
+
+        for index, model in enumerate(models, start=1):
+            message = f"Testing models {index}/{model_count}: {model.id}"
+
+            for _ in range(10):
+                progress.render(message)
+                time.sleep(0.1)
+
+        progress.finish(f"Finished testing {model_count} models.")
