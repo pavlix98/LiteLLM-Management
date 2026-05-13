@@ -28,6 +28,18 @@ class ModelTestResultRow(BaseModel):
     response: str
 
 
+class LongGenerationResultSummary(BaseModel):
+    """Summary displayed after a long generation test finishes."""
+
+    model_name: str = Field(min_length=1)
+    ttfb_seconds: float | None = Field(default=None, ge=0)
+    total_seconds: float = Field(ge=0)
+    event_count: int = Field(ge=0)
+    character_count: int = Field(ge=0)
+    word_count: int = Field(ge=0)
+    response_preview: str
+
+
 class ModelTestingProgress:
     """Live progress controller for per-model testing."""
 
@@ -114,6 +126,21 @@ class CliConsole:
         with progress:
             yield ModelTestingProgress(progress=progress, task_id=task_id)
 
+    @contextmanager
+    def long_generation_progress(self) -> Iterator[None]:
+        """Render live elapsed time while a long generation request runs."""
+        progress = Progress(
+            SpinnerColumn(spinner_name="dots"),
+            TextColumn("[cyan]Generating long streamed response[/cyan]"),
+            TimeElapsedColumn(),
+            console=self._console,
+            transient=True,
+        )
+        progress.add_task("Generating long streamed response", total=None)
+
+        with progress:
+            yield
+
     def show_results(self, summary: FeatureResultSummary) -> None:
         """Show final result summary."""
         table = Table.grid(padding=(0, 1))
@@ -156,6 +183,34 @@ class CliConsole:
 
         self._console.print(table)
 
+    def show_long_generation_result(self, summary: LongGenerationResultSummary) -> None:
+        """Show long generation timings and output size."""
+        table = Table.grid(padding=(0, 1))
+        table.add_column(style="bold cyan", no_wrap=True)
+        table.add_column(style="white")
+        table.add_row("Model", summary.model_name)
+        table.add_row("TTFB", self._format_optional_seconds(summary.ttfb_seconds))
+        table.add_row("Total", f"{summary.total_seconds:.3f}s")
+        table.add_row("Stream events", str(summary.event_count))
+        table.add_row("Characters", str(summary.character_count))
+        table.add_row("Words", str(summary.word_count))
+
+        self._console.print(
+            Panel(
+                table,
+                title="[bold cyan]Long Generation Result[/bold cyan]",
+                border_style="cyan",
+            )
+        )
+
+        self._console.print(
+            Panel(
+                Text(summary.response_preview, style="white"),
+                title="[bold cyan]Response Preview[/bold cyan]",
+                border_style="cyan",
+            )
+        )
+
     def _get_status_style(self, status: str) -> str:
         if status == "ok":
             return "green"
@@ -164,3 +219,9 @@ class CliConsole:
             return "red"
 
         return "yellow"
+
+    def _format_optional_seconds(self, seconds: float | None) -> str:
+        if seconds is None:
+            return "No text delta received"
+
+        return f"{seconds:.3f}s"

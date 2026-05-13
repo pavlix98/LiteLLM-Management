@@ -25,7 +25,9 @@ class LitellmManagementCli:
         if len(selected_features) > 1:
             parser.error("Choose exactly one feature flag.")
 
-        return selected_features[0].run()
+        selected_feature = selected_features[0]
+        selected_feature.configure(parsed_args)
+        return selected_feature.run()
 
     def _create_parser(self) -> argparse.ArgumentParser:
         parser = argparse.ArgumentParser(
@@ -34,11 +36,7 @@ class LitellmManagementCli:
         )
 
         for feature in self._feature_registry.features:
-            parser.add_argument(
-                feature.definition.flag,
-                action="store_true",
-                help=feature.definition.description,
-            )
+            feature.add_arguments(parser)
 
         return parser
 

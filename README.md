@@ -10,6 +10,8 @@ cp .env.example .env
 poetry run litellm_management
 poetry run litellm_management --help
 poetry run litellm_management --test-available-models
+poetry run litellm_management --test-long-generation
+poetry run litellm_management --test-long-generation --long-generation-model "GPT-5.5"
 ```
 
 Set `LITELLM_API_TOKEN` in the local `.env` file before running features that call LiteLLM. The `.env` file is local-only and must not be committed.

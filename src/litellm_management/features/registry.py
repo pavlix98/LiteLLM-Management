@@ -5,6 +5,7 @@ from collections.abc import Iterable
 
 from litellm_management.features.base import Feature
 from litellm_management.features.test_available_models import TestAvailableModelsFeature
+from litellm_management.features.test_long_generation import TestLongGenerationFeature
 
 
 class FeatureRegistry:
@@ -37,6 +38,6 @@ def create_feature_registry() -> FeatureRegistry:
     return FeatureRegistry(
         features=[
             TestAvailableModelsFeature(),
+            TestLongGenerationFeature(),
         ]
     )
-

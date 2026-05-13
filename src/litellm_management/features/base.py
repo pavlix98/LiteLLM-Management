@@ -1,5 +1,7 @@
 """Base abstractions for CLI features."""
 
+import argparse
+
 from abc import ABC, abstractmethod
 
 from pydantic import BaseModel, Field
@@ -18,7 +20,17 @@ class Feature(ABC):
     def __init__(self, definition: FeatureDefinition) -> None:
         self.definition = definition
 
+    def add_arguments(self, parser: argparse.ArgumentParser) -> None:
+        """Add this feature's CLI flag and optional feature parameters."""
+        parser.add_argument(
+            self.definition.flag,
+            action="store_true",
+            help=self.definition.description,
+        )
+
+    def configure(self, parsed_args: argparse.Namespace) -> None:
+        """Read parsed CLI arguments before running the feature."""
+
     @abstractmethod
     def run(self) -> int:
         """Run the feature and return a process exit code."""
-
