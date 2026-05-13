@@ -3,14 +3,23 @@
 import argparse
 from collections.abc import Sequence
 
+from litellm_management.cli_ui import CliConsole
 from litellm_management.features.registry import FeatureRegistry, create_feature_registry
+
+
+INTERRUPTED_EXIT_CODE = 130
 
 
 class LitellmManagementCli:
     """Thin CLI orchestrator that delegates work to registered features."""
 
-    def __init__(self, feature_registry: FeatureRegistry) -> None:
+    def __init__(
+        self,
+        feature_registry: FeatureRegistry,
+        console: CliConsole | None = None,
+    ) -> None:
         self._feature_registry = feature_registry
+        self._console = console or CliConsole()
 
     def run(self, argv: Sequence[str] | None = None) -> int:
         """Parse arguments and run the selected feature."""
@@ -25,9 +34,13 @@ class LitellmManagementCli:
         if len(selected_features) > 1:
             parser.error("Choose exactly one feature flag.")
 
-        selected_feature = selected_features[0]
-        selected_feature.configure(parsed_args)
-        return selected_feature.run()
+        try:
+            selected_feature = selected_features[0]
+            selected_feature.configure(parsed_args)
+            return selected_feature.run()
+        except KeyboardInterrupt:
+            self._console.show_interrupted()
+            return INTERRUPTED_EXIT_CODE
 
     def _create_parser(self) -> argparse.ArgumentParser:
         parser = argparse.ArgumentParser(

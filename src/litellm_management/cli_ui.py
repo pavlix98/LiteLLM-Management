@@ -104,6 +104,10 @@ class CliConsole:
         """Show a neutral empty-state line."""
         self._console.print(f"[yellow]{message}[/yellow]")
 
+    def show_interrupted(self) -> None:
+        """Show a human-readable interruption message."""
+        self._console.print("[yellow]Interrupted by user. Exiting.[/yellow]")
+
     @contextmanager
     def test_models_progress(self, model_count: int) -> Iterator[ModelTestingProgress]:
         """Render live per-model testing progress."""
